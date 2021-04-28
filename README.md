@@ -1,2 +1,3 @@
-# firebase-get-and-update-wth-flutter-event-calendar
-How to work with the Firebase database and the Flutter event calendar (SfCalendar) for appointments
+
+**[View document in Syncfusion Flutter Knowledge base](https://www.syncfusion.com/kb/12067/how-to-work-with-the-firebase-database-and-the-flutter-event-calendar-sfcalendar-for)**
+
