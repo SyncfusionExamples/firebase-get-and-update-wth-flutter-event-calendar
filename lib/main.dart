@@ -14,6 +14,7 @@ class LoadDataFromFireBase extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'FireBase',
       home: LoadDataFromFireStore(),
     );
@@ -29,6 +30,7 @@ class LoadDataFromFireStoreState extends State<LoadDataFromFireStore> {
   DataSnapshot querySnapshot;
   dynamic data;
   List<Color> _colorCollection;
+  final List<String> options = <String>['Add', 'Delete'];
 
   @override
   void initState() {
@@ -46,7 +48,38 @@ class LoadDataFromFireStoreState extends State<LoadDataFromFireStore> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
+      appBar: AppBar(
+        leading: PopupMenuButton<String>(
+          icon: Icon(Icons.settings),
+          itemBuilder: (BuildContext context) => options.map((String choice) {
+            return PopupMenuItem<String>(
+              value: choice,
+              child: Text(choice),
+            );
+          }).toList(),
+          onSelected: (String value) {
+            if (value == 'Add') {
+              final dbRef =
+                  FirebaseDatabase.instance.reference().child("CalendarData");
+              dbRef.push().set({
+                "StartTime": '07/04/2020 07:00:00',
+                "EndTime": '07/04/2020 08:00:00',
+                "Subject": 'NewMeeting',
+                "ResourceId": '0001'
+              }).then((_) {
+                Scaffold.of(context).showSnackBar(
+                    SnackBar(content: Text('Successfully Added')));
+              }).catchError((onError) {
+                print(onError);
+              });
+            } else if (value == 'Delete') {
+              final dbRef =
+                  FirebaseDatabase.instance.reference().child("CalendarData");
+              dbRef.remove();
+            }
+          },
+        ),
+      ),
       body: _showCalendar(),
     );
   }
@@ -67,7 +100,8 @@ class LoadDataFromFireStoreState extends State<LoadDataFromFireStore> {
               isAllDay: false,
               from: DateFormat('dd/MM/yyyy HH:mm:ss').parse(data['StartTime']),
               to: DateFormat('dd/MM/yyyy HH:mm:ss').parse(data['EndTime']),
-              background: _colorCollection[random.nextInt(9)]));
+              background: _colorCollection[random.nextInt(9)],
+              resourceId: data['ResourceId']));
         }
       } else {
         return Center(
@@ -75,37 +109,18 @@ class LoadDataFromFireStoreState extends State<LoadDataFromFireStore> {
         );
       }
 
-      return SafeArea(
-          child: Column(
-            children: [
-              Container(
-                height: 400,
-                child: SfCalendar(
-                  view: CalendarView.month,
-                  initialDisplayDate: DateTime(2020, 4, 5, 9, 0, 0),
-                  dataSource: _getCalendarDataSource(collection),
-                  monthViewSettings: MonthViewSettings(showAgenda: true),
-                ),
-              ),
-              RaisedButton(onPressed: () {
-                final dbRef = FirebaseDatabase.instance.reference().child("CalendarData");
-                dbRef.push().set({
-                  "StartTime": '07/04/2020 07:00:00',
-                  "EndTime": '07/04/2020 08:00:00',
-                  "Subject":'NewMeeting',
-                }).then((_) {
-                  Scaffold.of(context).showSnackBar(
-                      SnackBar(content: Text('Successfully Added')));
-                }).catchError((onError) {
-                  print(onError);
-                });
-              }, child: Text("Add")),
-              RaisedButton(onPressed: () {
-                final dbRef = FirebaseDatabase.instance.reference().child("CalendarData");
-                dbRef.remove();
-              }, child: Text("Delete")),
-            ],
-          ));
+      return SfCalendar(
+        view: CalendarView.timelineDay,
+        allowedViews: [
+          CalendarView.timelineDay,
+          CalendarView.timelineWeek,
+          CalendarView.timelineWorkWeek,
+          CalendarView.timelineMonth,
+        ],
+        initialDisplayDate: DateTime(2020, 4, 5, 9, 0, 0),
+        dataSource: _getCalendarDataSource(collection),
+        monthViewSettings: MonthViewSettings(showAgenda: true),
+      );
     }
   }
 
@@ -126,12 +141,19 @@ class LoadDataFromFireStoreState extends State<LoadDataFromFireStore> {
 
 MeetingDataSource _getCalendarDataSource([List<Meeting> collection]) {
   List<Meeting> meetings = collection ?? <Meeting>[];
-  return MeetingDataSource(meetings);
+  List<CalendarResource> resourceColl = <CalendarResource>[];
+  resourceColl.add(CalendarResource(
+    displayName: 'John',
+    id: '0001',
+    color: Colors.red,
+  ));
+  return MeetingDataSource(meetings, resourceColl);
 }
 
 class MeetingDataSource extends CalendarDataSource {
-  MeetingDataSource(List<Meeting> source) {
+  MeetingDataSource(List<Meeting> source, List<CalendarResource> resourceColl) {
     appointments = source;
+    resources = resourceColl;
   }
 
   @override
@@ -158,6 +180,11 @@ class MeetingDataSource extends CalendarDataSource {
   Color getColor(int index) {
     return appointments[index].background;
   }
+
+  @override
+  List<Object> getResourceIds(int index) {
+    return [appointments[index].resourceId];
+  }
 }
 
 getDataFromDatabase() async {
@@ -167,11 +194,18 @@ getDataFromDatabase() async {
 }
 
 class Meeting {
-  Meeting({this.eventName, this.from, this.to, this.background, this.isAllDay});
+  Meeting(
+      {this.eventName,
+      this.from,
+      this.to,
+      this.background,
+      this.isAllDay,
+      this.resourceId});
 
   String eventName;
   DateTime from;
   DateTime to;
   Color background;
   bool isAllDay;
+  String resourceId;
 }
